@@ -10,6 +10,8 @@ int picoshell(char **cmds[])
     int fd[2] = {-1, -1};
     int i = 0;
     pid_t pid;
+    int status;
+    int err = 0;
 
     if (!cmds)
         return 1;
@@ -35,14 +37,15 @@ int picoshell(char **cmds[])
         {
             if (prev_fd != -1)
             {
-               dup2(prev_fd, STDIN_FILENO);
-                
+                if(dup2(prev_fd, STDIN_FILENO) == -1)
+                    exit(1);
                 close(prev_fd);
             }
             if (cmds[ i + 1])
             {
                 close(fd[0]);
-                dup2(fd[1], STDOUT_FILENO);
+                if(dup2(fd[1], STDOUT_FILENO) == -1)
+                    exit(1);
                 close(fd[1]);
             }
             execvp(cmds[i][0], cmds[i]);
@@ -63,12 +66,16 @@ int picoshell(char **cmds[])
         }       
         i++;
     }
-    while (wait(NULL) > 0)
+ 
+
+    while (wait(&status) > 0)
     {
-        ;
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+            err = 1; 
     }
-    return 0;
+    return err;
 }
+
 
 int main(int argc, char **argv)
 {
